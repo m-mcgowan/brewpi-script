@@ -20,6 +20,7 @@ import serial
 import time
 import simplejson as json
 import os
+import arduinoProtocol
 from brewpiVersion import AvrInfo
 import expandLogMessage
 import settingRestore
@@ -227,27 +228,12 @@ def programArduino(config, boardType, hexFile, restoreWhat):
 
 
 	# read new version
-	avrVersionNew = None
-	retries = 0
-	requestVersion = True
-	while requestVersion:
-		for line in ser.readlines():
-			if line[0] == 'N':
-				data = line.strip('\n')[2:]
-				avrVersionNew = AvrInfo(data)
+	avrVersionNew = arduinoProtocol.fetchVersionNumber(ser, 10)
+	if avrVersionNew is not None:
 				printStdErr(("Checking new version: Found Arduino " + avrVersionNew.board +
 								" with a " + str(avrVersionNew.shield) + " shield, " +
 								"running BrewPi version " + str(avrVersionNew.version) +
 								" build " + str(avrVersionNew.build) + "\n"))
-				requestVersion = False
-				break
-
-		else:
-			ser.write('n')  # request version info
-			time.sleep(1)
-			retries += 1
-			if retries > 10:
-				break
 
 
 	printStdErr("Resetting EEPROM to default settings")

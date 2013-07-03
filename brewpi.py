@@ -57,14 +57,14 @@ from brewpiVersion import AvrInfo
 import pinList
 import expandLogMessage
 import BrewPiProcess
-
+from brewpiLogging import logMessage
+import arduinoProtocol
 
 
 # Settings will be read from Arduino, initialize with same defaults as Arduino
 # This is mainly to show what's expected. Will all be overwritten on the first update from the arduino
 
 compatibleBrewpiVersion = "0.2.0"
-
 # Control Settings
 cs = dict(mode='b', beerSetting=20.0, fridgeSetting=20.0, heatEstimator=0.2, coolEstimator=5)
 
@@ -82,10 +82,6 @@ cv = dict(beerDiff=0.000, diffIntegral=0.000, beerSlope=0.000, p=0.000, i=0.000,
 deviceList = dict(listState="", installed=[], available=[])
 
 lcdText = ['Script starting up', ' ', ' ', ' ']
-
-
-def logMessage(message):
-	print >> sys.stderr, time.strftime("%b %d %Y %H:%M:%S   ") + message
 
 # Read in command line arguments
 try:
@@ -270,15 +266,8 @@ logMessage("Notification: Script started for beer '" + config['beerName'] + "'")
 time.sleep(float(config.get('startupDelay', 10)))
 
 ser.flush()
-brewpiVersion = None
-retries = 0
-
-requestVersion = True
-while requestVersion:
-	for line in ser.readlines():
-		if line[0] == 'N':
-			data = line.strip('\n')[2:]
-			avrVersion = AvrInfo(data)
+avrVersion = arduinoProtocol.fetchVersionNumber(ser)
+if avrVersion is not None:
 			brewpiVersion = avrVersion.version
 			logMessage( "Found Arduino " + str(avrVersion.board) +
 						" with a " + str(avrVersion.shield) + " shield, " +
@@ -293,18 +282,10 @@ while requestVersion:
 						   "does not match log version number received from Arduino." +
 						   "Arduino version = " + str(avrVersion.log) +
 						   ", local copy version = " + str(expandLogMessage.getVersion()))
-			requestVersion = False
-			break
 	else:
-		ser.write('n')
-		time.sleep(1)
-		retries += 1
-		if retries > 5:
 			logMessage("Warning: Cannot receive version number from Arduino. " +
 				   "Your Arduino is either not programmed or running a very old version of BrewPi. " +
 				   "Please upload a new version of BrewPi to your Arduino.")
-			# script will continue so you can at least program the Arduino
-			break
 
 if brewpiVersion:
 	ser.flush()
